@@ -1,27 +1,8 @@
-# Example Privacy CG explainer and spec source files
-
-This repository contains explainer and spec templates that can be used
-by folks working on proposals and work items in the Privacy CG.
-
-This file is the sample explainer, which begins after this section. The
-sample explainer text itself comes from the
-[TAG](https://w3ctag.github.io/)'s excellent
-[explainer explainer](https://w3ctag.github.io/explainers).
-
-There is also **[sample work item spec source](work-item.bs)** (in
-Bikeshed), and a [Makefile](Makefile) that can be used for testing
-explainer and spec changes locally. Don't forget to rename
-`work-item.bs` to `shortname.bs`!
-
-<!-- When creating a new explainer, delete everything above the following line -->
 # [Title]
 
 [Keep one of these sentences:]
 
 A [Proposal](https://privacycg.github.io/charter.html#proposals)
-of the [Privacy Community Group](https://privacycg.github.io/).
-
-A [Work Item](https://privacycg.github.io/charter.html#work-items)
 of the [Privacy Community Group](https://privacycg.github.io/).
 
 ## Authors:
@@ -31,7 +12,7 @@ of the [Privacy Community Group](https://privacycg.github.io/).
 - [etc.]
 
 ## Participate
-- https://github.com/privacycg/deliverable/issues
+- https://github.com/privacycg/js-membranes/issues
 
 ## Table of Contents [if the explainer is longer than one printed page]
 
