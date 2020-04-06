@@ -6,7 +6,7 @@ of the [Privacy Community Group](https://privacycg.github.io/).
 ## Authors:
 
 * Pete Snyder <pes@brave.com>
-* Brendan Eich <brendan@brave.com> 
+* Brendan Eich <brendan@brave.com>
 * Pranjal Jumde <pranjal@brave.com>
 
 ## Participate
@@ -48,26 +48,32 @@ The source of this problem is that script included from any origin is treated by
 
 This proposal aims to solve this problem through an opt-in method by which an elevated party (browser agent, browser extension, or hosting origin) can, at runtime, control what resources are accessible by third party code (and less trusted 1p code). The proposal uses the concept of membranes, implemented via an ES6-proxy-based interface, enforced by elevated / trusted first-party code.
 
-The proposal aims to be compatible with existing code, and to allow users to apply it to only subsets of existing code as needed, without any changes to the existing, untrusted code.  All new mediation logic exists within new, distinct code units.
+The proposal aims to be compatible with existing code, and to allow users to apply it to only subsets of existing code as needed, without any changes to the existing, untrusted code.  All new mediation logic exists within new, distinct code units.  It is a primary goal of this proposal that these protections be able to be applied to existing code, w/o requiring any code rewriting (i.e. the protection / mediation code must be able to work without rewriting first or third party code).
 
 The first party can “opt in” contexts that should be restricted to mediated DOM, Web API, and document access.  We refer to this process as assigning origin labels.  By construction, whenever labeled code is given access to a protected object, it is given only a new, “membrane” proxy object; untrusted code cannot gain direct access to objects on the other side of the security boundary.
 
 ## Goals
+
+### In Scope
 * Controlling third party script access to cookies, form fields, fingerprinting vectors, etc.
 * Restricting a third party form validation library to a certain form in the document, but not to other page resources.
 * Preventing untrusted code from carrying out timing attacks by calling high resolution timers multiple times.
 * Prevent data exfiltration using code injections.
-
-## Out of Scope
-* Protecting script code and state: there are already methods for doing so (modules, closures, etc.)
 * Protecting builtins / prototypes: these are similarly global shared state, but not targeted by this proposal (though a similar approach might be useful)
+
+### Out of Scope
+* Protecting script local code and state: there are already methods for doing so (modules, closures, etc.)
+* Applying protections to "downstream" scripts. While this proposal aims to be compatible with, and to be improved by, JavaScript engines that accurately trace JavaScript code unit lineage (e.g. script X was injected by script Y, which was included in the original document text), it intentionally does not require it, since not all JavaScript engines currently track such information comfortably.  But if / when all engines do, we imagine extending that information to the membrane policy layer as well.
+
+### In Scope, Tricky Cases
+* Because protections must be able to be applied to all existing, this includes code that follows non-best-practice design patterns.  For example, popular libraries like MooTools intentionally modify builtin prototypes; this proposal must allow for such code to continue working, but controlling which scripts get access to which prototype chains.
 
 ## Proposal
 This proposal is to allow first parties to limit access to the functionality and global data (in the document or otherwise) that less trusted parties can access.  The first party indicates which following origins of code should be constrained.  This could be any combination of third party code and less-trusted first party code on the page.
 
-The first party labels code as “trusted” (e.g. able to intermediate on other access to global functionality and state) through syntax similar to CSP (e.g. with a nonce or hash).  The first party can label at most one script as trusted per top level URL. 
+The first party labels code as “trusted” (e.g. able to intermediate on other access to global functionality and state) through syntax similar to CSP (e.g. with a nonce or hash).  The first party can label at most one script as trusted per top level URL.
 
-**Trusted code** is JavaScript code that executes as normal, except that it has access to a global function called “registerTrustProxy”.  Trusted code can call this function to register different membranes to different, less trusted code.  The membrane API is similar to that of ES6 proxies, with modifications to allow the handler object to distinguish which origin is attempting to access document state and web capabilities.  Trusted code must execute before any other code units on the page executes, otherwise page execution is halted.  We also intend browsers and browser extensions to be able to perform this mediation, through the addition of a new privilege in the WebExtension standard.
+**Trusted code** is JavaScript code that executes as normal, except that it has access to a global function called “registerTrustProxy”.  Trusted code can call this function to register different membranes to different, less trusted code.  This code is guaranteed to always run with access to its own prototypes, in its own realm-like world.  The membrane API is similar to that of ES6 proxies, with modifications to allow the handler object to distinguish which origin is attempting to access document state and web capabilities.  Trusted code must execute before any other code units on the page executes, otherwise page execution is halted.  We also intend browsers and browser extensions to be able to perform this mediation, through the addition of a new privilege in the WebExtension standard.
 
 **Untrusted code** is any code from an origin (first or third party) labeled as untrusted / mediated by the first party code.
 
@@ -101,7 +107,7 @@ window.registerMembraneProxy(interposedOrigins, {
            }
            return "fake cookie value";
        }
- 
+
        // Restrict the password library from accessing any DOM functionality other
        // than the value of password fields.
        if (scriptInfo.url.origin === passwordLibOrigin) {
@@ -112,12 +118,12 @@ window.registerMembraneProxy(interposedOrigins, {
            }
            return "bad bad bad";
        }
- 
+
        // Otherwise, find or create the membrane wrapping the result of this get.
        return Reflect.get(target, prop);
    },
 });
- 
+
 // Prevent any code units from calling a source of high resolution timestamps.
 // Allow all other kinds of calls.
 window.registerMembraneProxy(["*"], {
@@ -161,7 +167,7 @@ COWL enables web-authors to label sensitive data before providing it to third pa
 Feature-Policy only allows a fixed set of features to be blocked, in embedded documents, and with a boolean label.
 
 ### How do you avoid `adoption fatigue` with this proposal?
-This proposal does not require any code-rewrite. It’s opt-in and allows web-authors to restrict 3p scripts incrementally. Web-Authors need not restrict all 3p scripts at once. 
+This proposal does not require any code-rewrite. It’s opt-in and allows web-authors to restrict 3p scripts incrementally. Web-Authors need not restrict all 3p scripts at once.
 
 ### What is the performance impact of this proxy-approach?
 This is unknown currently, but expected to be minimal when needed, given the high performance of ES6 Proxies in current JS runtimes.
@@ -178,25 +184,3 @@ Related, we anticipate that policies could be shared between users, similar to E
 Anecdotally we expect that requiring the use of a header would risk seeing low adoption; the proposal is designed to allow users to see benefits immediately (i.e. client-side policies) until adoption ticks up.
 
 <sup>1</sup> We have several ideas for how this might work (e.g. HTTP header pointing to a script at a .well_know location, etc.) but the core of this proposal is the enforcement mechanism / policy definitions; how to inform the browser of a policy for a page is a simpler issue.
-
-## Stakeholder Feedback / Opposition
-
-[Implementors and other stakeholders may already have publicly stated positions on this work. If you can, list them here with links to evidence as appropriate.]
-
-- [Implementor A] : Positive
-- [Stakeholder B] : No signals
-- [Implementor C] : Negative
-
-[If appropriate, explain the reasons given by other implementors for their concerns.]
-
-## References & acknowledgements
-
-[Your design will change and be informed by many people; acknowledge them in an ongoing way! It helps build community and, as we only get by through the contributions of many, is only fair.]
-
-[Unless you have a specific reason not to, these should be in alphabetical order.]
-
-Many thanks for valuable feedback and advice from:
-
-- [Person 1]
-- [Person 2]
-- [etc.]
